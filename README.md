@@ -39,7 +39,7 @@ pip install -r requirements.txt
 4. Install Ollama (https://ollama.com/download)
 
 Pull your model of choice
-````
+```
 ollama pull mistral
 ```
 
