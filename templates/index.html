@@ -1,0 +1,289 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RAG Pipeline Interface</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        #chat { max-width: 600px; margin: auto; padding: 10px; border: 1px solid #ccc; border-radius: 5px; background: #f9f9f9; height: 300px; overflow-y: auto; }
+        .message { margin: 10px 0; }
+        .query { font-weight: bold; color: #007bff; }
+        .response { margin-left: 20px; color: #555; }
+        #status { font-weight: bold; color: blue; margin-top: 10px; }
+        #thinking { font-style: italic; color: gray; margin-top: 10px; display: none; } /* Hidden by default */
+        .button { margin-top: 10px; }
+        input[type="text"] { width: 80%; padding: 10px; margin-right: 5px; }
+        input[type="file"] { margin-bottom: 10px; }
+        button { padding: 10px; cursor: pointer; }
+    </style>
+</head>
+<body>
+    <h1>RAG Pipeline Interface</h1>
+
+    <!-- Embed PDF Section -->
+    <div>
+        <h2>Embed Dataset</h2>
+    <form id="embed-form">
+        <input type="file" id="file-input" accept=".pdf, .csv"> <!-- Accept both PDFs and CSVs -->
+        <button type="submit">Embed</button>
+    </form>
+    <div id="status"></div> <!-- Status text field -->
+    </div>
+
+    <!-- Chat Interface -->
+    <div>
+        <h2>Chat Interface</h2>
+        <label for="pdf-select">Choose a PDF to query:</label>
+        <select id="pdf-select">
+            <option value="">All PDFs</option>
+        </select>
+        <div id="chat"></div>
+        <form id="chat-form" class="button">
+            <input type="text" id="query-input" placeholder="Ask a question">
+            <button type="submit">Send</button>
+        </form>
+        <button id="clear-history" class="button">Clear History</button> <!-- Clear History Button -->
+        <div id="thinking">Thinking...</div> <!-- Thinking indicator -->
+    </div>
+
+    <!-- Fill Missing Values Section -->
+    <div>
+        <h2>Fill Missing Values in CSV</h2>
+        <form id="fill-missing-form">
+            <input type="file" id="csv-input" accept=".csv">
+            <button type="submit">Fill Missing Values</button>
+        </form>
+        <div id="fill-status"></div> <!-- Status field for missing value filling -->
+    </div>
+
+    <script>
+        const embedForm = document.getElementById('embed-form');
+        const statusDiv = document.getElementById('status');
+        const chat = document.getElementById('chat');
+        const chatForm = document.getElementById('chat-form');
+        const queryInput = document.getElementById('query-input');
+        const thinkingDiv = document.getElementById('thinking');
+        const clearHistoryButton = document.getElementById('clear-history'); // Clear History Button
+        const pdfSelect = document.getElementById('pdf-select'); // Dropdown for PDF selection
+
+        // Fetch the list of available PDFs
+        async function fetchPdfList() {
+            const response = await fetch('/list_pdfs');  // Backend endpoint to list PDFs
+            if (response.ok) {
+                const pdfs = await response.json();
+                pdfSelect.innerHTML = '<option value="">All PDFs</option>'; // Reset options
+                pdfs.forEach(pdf => {
+                    const option = document.createElement('option');
+                    option.value = pdf;
+                    option.textContent = pdf;
+                    pdfSelect.appendChild(option);
+                });
+            } else {
+                console.error('Failed to fetch PDF list');
+            }
+        }
+
+        // Load the list of PDFs on page load
+        window.addEventListener('load', async () => {
+            fetchPdfList();
+            const response = await fetch('/chat_history');
+            const chatHistory = await response.json();
+            chat.innerHTML = ''; // Clear existing content if any
+            chatHistory.forEach(entry => {
+                const messageDiv = document.createElement('div');
+                messageDiv.className = 'message';
+
+                const queryDiv = document.createElement('div');
+                queryDiv.className = 'query';
+                queryDiv.textContent = `Q: ${entry.query}`;
+
+                const responseDiv = document.createElement('div');
+                responseDiv.className = 'response';
+                responseDiv.textContent = `A: ${entry.response}`;
+
+                messageDiv.appendChild(queryDiv);
+                messageDiv.appendChild(responseDiv);
+
+                chat.appendChild(messageDiv);
+            });
+
+            // Scroll to the latest message
+            chat.scrollTop = chat.scrollHeight;
+        });
+
+        // Handle embedding functionality new
+        embedForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const fileInput = document.getElementById('file-input');
+            const file = fileInput.files[0];
+            if (!file) {
+                alert('Please select a file');
+                return;
+            }
+
+            statusDiv.textContent = 'Embedding...'; // Show status as "Embedding..."
+
+            const formData = new FormData();
+            formData.append('file', file);
+
+            try {
+                const response = await fetch('/embed', {
+                    method: 'POST',
+                    body: formData,
+                });
+
+                const result = await response.json();
+
+                if (response.ok) {
+                    statusDiv.textContent = result.message; // Show success message
+                } else {
+                    statusDiv.textContent = `Error: ${result.error}`; // Show error message
+                }
+            } catch (err) {
+                statusDiv.textContent = `Error: ${err.message}`; // Handle network or server errors
+            }
+        });
+
+        // // Handle embedding functionality old
+        // embedForm.addEventListener('submit', async (e) => {
+        //     e.preventDefault();
+        //     const fileInput = document.getElementById('file-input');
+        //     const file = fileInput.files[0];
+        //     if (!file) {
+        //         alert('Please select a file');
+        //         return;
+        //     }
+
+        //     statusDiv.textContent = 'Embedding...'; // Show status as "Embedding..."
+
+        //     const formData = new FormData();
+        //     formData.append('file', file);
+
+        //     try {
+        //         const response = await fetch('/upload', {
+        //             method: 'POST',
+        //             body: formData,
+        //         });
+
+        //         const result = await response.json();
+
+        //         if (response.ok) {
+        //             statusDiv.textContent = 'Finished embedding'; // Update status to "Finished embedding"
+        //             fetchPdfList(); // Refresh PDF list after embedding
+        //         } else {
+        //             statusDiv.textContent = `Error: ${result.error}`; // Show error message
+        //         }
+        //     } catch (err) {
+        //         statusDiv.textContent = `Error: ${err.message}`; // Handle network or server errors
+        //     }
+        // });
+
+        // Handle chat queries
+        chatForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const query = queryInput.value.trim();
+            const selectedPdf = pdfSelect.value;  // Get the selected PDF
+
+            if (!query) {
+                alert('Please enter a query');
+                return;
+            }
+
+            // Show "Thinking..." feedback
+            thinkingDiv.style.display = 'block';
+
+            const response = await fetch('/ask', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ query, filename: selectedPdf }),
+            });
+            const result = await response.json();
+
+            // Hide "Thinking..." feedback
+            thinkingDiv.style.display = 'none';
+
+            if (response.ok) {
+                // Append the new query and response to the chat
+                const messageDiv = document.createElement('div');
+                messageDiv.className = 'message';
+
+                const queryDiv = document.createElement('div');
+                queryDiv.className = 'query';
+                queryDiv.textContent = `Q: ${query}`;
+
+                const responseDiv = document.createElement('div');
+                responseDiv.className = 'response';
+                responseDiv.textContent = `A: ${result[result.length - 1].response}`; // Use the latest response
+
+                messageDiv.appendChild(queryDiv);
+                messageDiv.appendChild(responseDiv);
+
+                chat.appendChild(messageDiv); // Append the new message to the chat
+                queryInput.value = ''; // Clear the input field
+
+                // Scroll to the latest message
+                chat.scrollTop = chat.scrollHeight;
+            } else {
+                alert('Error processing query. Please try again.');
+            }
+        });
+
+        // Handle Clear History Button
+        clearHistoryButton.addEventListener('click', async () => {
+            const sessionResponse = await fetch('/clear_session', { method: 'POST' }); // Clear session on the server
+            const chromaResponse = await fetch('/clear_chroma', { method: 'POST' }); // Clear Chroma database
+
+            if (sessionResponse.ok && chromaResponse.ok) {
+                chat.innerHTML = ''; // Reset the chat display
+                alert('Chat history and Chroma database cleared!');
+                fetchPdfList(); // Refresh PDF list after clearing
+            } else {
+                alert('Error clearing data. Please try again.');
+            }
+        });
+
+
+        const fillForm = document.getElementById('fill-missing-form');
+        const fillStatus = document.getElementById('fill-status');
+
+        fillForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const csvInput = document.getElementById('csv-input');
+            const file = csvInput.files[0];
+            if (!file) {
+                alert('Please select a CSV file');
+                return;
+            }
+
+            fillStatus.textContent = 'Filling missing values...';
+
+            const formData = new FormData();
+            formData.append('file', file);
+
+            try {
+                const response = await fetch('/fill_missing', {
+                    method: 'POST',
+                    body: formData,
+                });
+
+                const result = await response.json();
+
+                if (response.ok) {
+                    fillStatus.textContent = 'Missing values filled successfully. Download the completed file:';
+                    const link = document.createElement('a');
+                    link.href = result.completed_file;
+                    link.download = 'completed_file.csv';
+                    link.textContent = 'Download Completed File';
+                    fillStatus.appendChild(link);
+                } else {
+                    fillStatus.textContent = `Error: ${result.error}`;
+                }
+            } catch (err) {
+                fillStatus.textContent = `Error: ${err.message}`;
+            }
+        });
+
+    </script>
+</body>
+</html>
