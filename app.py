@@ -168,7 +168,9 @@ def fill_missing():
 
     # Process rows with missing values
     llm = ChatOllama(model=LLM_MODEL,
-                     temperature=0)
+                     temperature=0,
+                     num_gpu=0,
+                     num_thread=6)
     db = get_vector_db()
     retriever = db.as_retriever()
 

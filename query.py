@@ -1,5 +1,4 @@
 import os
-#from langchain_community.chat_models import ChatOllama
 from langchain_ollama import ChatOllama
 from langchain.prompts import ChatPromptTemplate, PromptTemplate
 from langchain_core.output_parsers import StrOutputParser
@@ -36,7 +35,9 @@ def get_prompt():
 
 def query(input, filename=None):
     if input:
-        llm = ChatOllama(model=LLM_MODEL)
+        llm = ChatOllama(model=LLM_MODEL,
+                         num_gpu=0,
+                         num_thread=6)
         db = get_vector_db()
 
         # Use filename as a filter if provided
