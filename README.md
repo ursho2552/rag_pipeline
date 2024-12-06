@@ -21,26 +21,36 @@ This project is based on the work of Nasser Maronie's post "Build Your Own RAG A
 
 ## Setup and Installation
 1. Prerequisites
-    - Python 3.8 or later
-    - A modern browser (for frontend interaction)
-    - Flask (backend framework)
-    - Chroma (vector database)
-    - Ollama or a compatible LLM backend
+    - Python 3.11.7
 2. Clone the Project
 
-3. Install Dependencies
-
-Install the required Python packages using pip:
-
+3. Create a virtual env in the project directory
 ```
-pip install -r requirements.txt
+python3 -m venv venv
 ```
 
-4. Install Ollama (https://ollama.com/download)
-
-Pull your model of choice
+4. Activate your venv
 ```
-ollama pull mistral
+source venv/bin/activate
+````
+
+5. Install the following packages
+```
+pip install --q chromadb
+pip install --q unstructured langchain langchain-text-splitters
+pip install --q "unstructured[all-docs]"
+pip install --q flask
+pip install Flask-Session
+pip install langchain-community
+pip install langchain-ollama
+pip install langchain-chroma
+```
+
+6. Install Ollama (https://ollama.com/download)
+
+7. Pull your model of choice
+```
+ollama pull llama2
 ```
 
 Pull the text embedding model
@@ -63,7 +73,7 @@ Create a .env file in the root directory with the following values:
 TEMP_FOLDER = './_temp'
 CHROMA_PATH = 'chroma'
 COLLECTION_NAME = 'local-rag'
-LLM_MODEL = 'mistral'
+LLM_MODEL = 'llama2'
 TEXT_EMBEDDING_MODEL = 'nomic-embed-text'
 
 ```

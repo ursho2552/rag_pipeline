@@ -20,11 +20,31 @@ import pandas as pd
 import re
 import time  # Simulating progress for demonstration
 import traceback
-
+import shutil
 
 TEMP_FOLDER = os.getenv("TEMP_FOLDER", "./_temp")
 os.makedirs(TEMP_FOLDER, exist_ok=True)
 first_request = True
+def clear_directories(directories):
+    """
+    Clear all contents of the specified directories.
+    """
+    for directory in directories:
+        if os.path.exists(directory):
+            # Remove all files and subdirectories
+            shutil.rmtree(directory)
+        # Recreate the empty directory
+        os.makedirs(directory, exist_ok=True)
+
+# Directories to be cleared
+directories_to_clear = [
+    TEMP_FOLDER,          # For temporary files
+    './chroma',           # For Chroma database
+    './flask_session'     # For session data
+]
+
+# Clear directories before starting the app
+clear_directories(directories_to_clear)
 
 app = Flask(__name__)
 
@@ -147,7 +167,8 @@ def fill_missing():
     df = pd.read_csv(file_path)
 
     # Process rows with missing values
-    llm = ChatOllama(model=LLM_MODEL)
+    llm = ChatOllama(model=LLM_MODEL,
+                     temperature=0)
     db = get_vector_db()
     retriever = db.as_retriever()
 
@@ -156,7 +177,25 @@ def fill_missing():
         for col in df.columns:
             if str(row[col]).lower() == "missing":  # Check for missing values
                 # Query the retriever for context
-                query_text = f"Fill the missing value for '{col}'. Put your one word response between two _. Use the context of this row: {row.to_dict()}"
+                # query_text = f"Fill the missing value for '{col}'. Put your one word response between two _. Use the context of this row: {row.to_dict()}"
+                query_text = f"""
+                You are an expert in ocean observations and meta-data enhancement with expert knowledge.
+                Analyze and interpret the following data enclosed by <> for metadata enhancement following the rules described below.
+                Identify and extract possible values corresponding to the depth at which samples were collected,
+                measured in meters below the sea surface, ignore missing values.
+                Translate qualitative descriptors into numerical values based on your knowledge.
+                You can assume that surface or shallow mean 0 meters and you should respond __0.0__.
+                If the depth can be estimated, provide it as if it were the true depth.
+
+                Provide your response in the following format:
+                __<numeric value>__ if the depth can be determined, or __Unknown__ if the depth cannot be inferred from the data.
+
+                Provide your reasoning.
+                Data:
+                <{row.drop(col).to_dict()}>
+
+                """
+
                 context_docs = retriever.invoke(query_text)  # Pass query as a string
 
                 # Combine content of retrieved documents
@@ -168,12 +207,16 @@ def fill_missing():
                 # Replace missing value with the response
                 inferred_value = response.content.strip()
 
+
                 # Extract the word between underscores using a regular expression
-                match = re.search(r"_(.*?)_", inferred_value)
+                match = re.search(r"__(.*?)__", inferred_value)
                 if match:
                     inferred_value = match.group(1)  # Extract the word inside underscores
                 else:
                     inferred_value = 'Unknown'
+
+                print('RESPONSE clean:')
+                print(inferred_value)
                 # Clean up the inferred value (optional: strip excess text if needed)
                 inferred_value = inferred_value.split('\n')[0].strip()
                 df.at[index, col] = inferred_value
