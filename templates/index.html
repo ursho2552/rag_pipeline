@@ -232,7 +232,7 @@
         // Handle Clear History Button
         clearHistoryButton.addEventListener('click', async () => {
             const sessionResponse = await fetch('/clear_session', { method: 'POST' }); // Clear session on the server
-            const chromaResponse = await fetch('/clear_chroma', { method: 'POST' }); // Clear Chroma database
+            // const chromaResponse = await fetch('/clear_chroma', { method: 'POST' }); // Clear Chroma database
 
             if (sessionResponse.ok && chromaResponse.ok) {
                 chat.innerHTML = ''; // Reset the chat display
